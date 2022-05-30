@@ -1,3 +1,4 @@
+import copy
 import mysql.connector as mysql
 
 class dbservice:
@@ -11,7 +12,7 @@ class dbservice:
     def connect_mysql_db(self):
         '''Connects to MySQL Database'''
 
-        self.connector = mysql.connect(host='127.0.0.1', user='root', password='<mysqlpassword>')
+        self.connector = mysql.connect(host='127.0.0.1', user='root', password='mysql27')
         self.dbcursor = self.connector.cursor()
         self.dbcursor.execute('USE JORDEN')
 
@@ -183,8 +184,75 @@ class dbservice:
         return records
 
 
+    def update_user(self, Id, updated_data):
+        '''Updates an user in the database by 
+        updating USER, ADDRESS and COMPANY table'''
+
+        set_values_user = ""
+        updated_data_user = copy.deepcopy(updated_data)
+        del updated_data_user['address']
+        del updated_data_user['company']
+        for i, column in enumerate(updated_data_user.keys()):
+            if i != len(updated_data_user.keys())-1:
+                set_values_user += f'{column} = %({column})s,'
+            else:
+                set_values_user += f'{column} = %({column})s WHERE ID = %(id)s'
+                break
+        update_query_user = (f'UPDATE USER SET '+ set_values_user)
+        updated_data_user['id'] = Id
+
+        set_values_address = ""
+        updated_data_address = copy.deepcopy(updated_data['address'])
+        updated_data_address['lat'] = updated_data_address['geo']['lat']
+        updated_data_address['lng'] = updated_data_address['geo']['lng']
+        del updated_data_address['geo']
+        for i, column in enumerate(updated_data_address.keys()):
+            if i != len(updated_data_address.keys())-1:
+                set_values_address += f'{column} = %({column})s,'
+            else:
+                set_values_address += f'{column} = %({column})s WHERE ID = %(id)s'
+                break
+        update_query_address = (f'UPDATE ADDRESS SET '+ set_values_address)
+        updated_data_address['id'] = Id
+
+        set_values_company = ""
+        updated_data_company = copy.deepcopy(updated_data['company'])
+        for i, column in enumerate(updated_data_company.keys()):
+            if i != len(updated_data_company.keys())-1:
+                set_values_company += f'{column} = %({column})s,'
+            else:
+                set_values_company += f'{column} = %({column})s WHERE ID = %(id)s'
+                break
+        
+        update_query_company = (f'UPDATE COMPANY SET '+ set_values_company)
+        updated_data_company['id'] = Id
+        
+        try:
+            self.dbcursor.execute(update_query_user, updated_data_user)
+            self.dbcursor.execute(update_query_address, updated_data_address)
+            self.dbcursor.execute(update_query_company, updated_data_company)
+            self.connector.commit()
+        except Exception as e:
+            print(e)
+    
+
     def update_record(self, table_name, Id, updated_data):
-        pass
+        '''Updates record (posts and comments) in the Database'''
+
+        set_values = ""
+        for i, columns in enumerate(updated_data.keys()):
+            if i != len(updated_data.keys())-1:
+                set_values += f'{columns} = %({columns})s,'
+            else:
+                set_values += f'{columns} = %({columns})s WHERE ID = %(id)s'
+        update_query = (f'UPDATE {table_name} SET '+ set_values)
+        updated_data['id'] = Id
+
+        try:
+            self.dbcursor.execute(update_query, updated_data)
+            self.connector.commit()
+        except Exception as e:
+            print(e)
 
 
     def delete_record(self, table_name, Id):

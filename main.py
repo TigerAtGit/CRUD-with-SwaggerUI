@@ -71,7 +71,6 @@ class userDAO(object):
         for i, record in enumerate(records):
             self.users[i]['company'] = dict(zip(['name', 'catchPhrase', 'bs'], record[12:]))
             self.users[i]['address'] = dict(zip(['street', 'suite', 'city', 'zipcode'], record[6:10]))
-        for i, record in enumerate(records):
             self.users[i]['address']['geo'] = dict(zip(['lat', 'lng'], record[10:12]))
  
     def get(self, id):
@@ -84,6 +83,13 @@ class userDAO(object):
         user = data
         self.db.add_user(data)
         return user
+
+    def update(self, id, data):
+        self.db.update_user(id, data)
+        for user in self.users:
+            if user['id'] == id:
+                return user
+        api.abort(404, f"User with id {id} not Found!")
     
     def delete(self, id):
         self.db.delete_record('USER', id)
@@ -110,6 +116,13 @@ class PostDAO(object):
         post = data
         self.db.add_post(data)
         return post
+
+    def update(self, id, data):
+        self.db.update_record('POST', id, data)
+        for post in self.posts:
+            if post['id'] == id:
+                return post
+        api.abort(404, f"Post with id {id} not Found!")
     
     def delete(self, id):
         self.db.delete_record('POST', id)
@@ -137,6 +150,13 @@ class commentDAO(object):
         self.db.add_comment(data)
         return comment
     
+    def update(self, id, data):
+        self.db.update_record('COMMENT', id, data)
+        for comment in self.comments:
+            if comment['id'] == id:
+                return comment
+        api.abort(404, f"Comment with id {id} not Found!")
+
     def delete(self, id):
         self.db.delete_record('COMMENT', id)
 
@@ -148,7 +168,7 @@ DAO_comment = commentDAO()
 
 
 @ns.route('/users')
-class CommentList(Resource):
+class UserList(Resource):
     '''Shows a list of all users, and lets you make POST request to add new user'''
 
     @ns.doc('list_users')
@@ -168,13 +188,13 @@ class CommentList(Resource):
 @ns.route('/users/<int:id>')
 @ns.response(404, 'User not found')
 @ns.param('id', 'The user identifier')
-class Comment(Resource):
+class User(Resource):
     '''Shows a single user and lets you delete them'''
 
     @ns.doc('get_user')
     @ns.marshal_with(user)
     def get(self, id):
-        '''Fetch a given resource'''
+        '''Fetch a given user'''
         return DAO_user.get(id)
 
     @ns.doc('delete_user')
@@ -183,6 +203,12 @@ class Comment(Resource):
         '''Delete a user given its identifier'''
         DAO_user.delete(id)
         return '', 204
+
+    @ns.expect(user)
+    @ns.marshal_with(user)
+    def put(self, id):
+        '''Update a user given its identifier'''
+        return DAO_user.update(id, api.payload)
 
 
 @ns.route('/posts')
@@ -211,7 +237,7 @@ class Post(Resource):
     @ns.doc('get_post')
     @ns.marshal_with(post)
     def get(self, id):
-        '''Fetch a given resource'''
+        '''Fetch a given post'''
         return DAO_post.get(id)
 
     @ns.doc('delete_post')
@@ -220,6 +246,12 @@ class Post(Resource):
         '''Delete a post given its identifier'''
         DAO_post.delete(id)
         return '', 204
+
+    @ns.expect(post)
+    @ns.marshal_with(post)
+    def put(self, id):
+        '''Update a post given its identifier'''
+        return DAO_post.update(id, api.payload)
 
 
 @ns.route('/comments')
@@ -249,7 +281,7 @@ class Comment(Resource):
     @ns.doc('get_comment')
     @ns.marshal_with(comment)
     def get(self, id):
-        '''Fetch a given resource'''
+        '''Fetch a given comment'''
         return DAO_comment.get(id)
 
     @ns.doc('delete_comment')
@@ -258,6 +290,12 @@ class Comment(Resource):
         '''Delete a comment given its identifier'''
         DAO_comment.delete(id)
         return '', 204
+
+    @ns.expect(comment)
+    @ns.marshal_with(comment)
+    def put(self, id):
+        '''Update a comment given its identifier'''
+        return DAO_comment.update(id, api.payload)
 
 
 if __name__ == '__main__':
